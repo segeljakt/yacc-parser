@@ -7,6 +7,7 @@ pub enum Token {
     Bar,            // |
     Colon,          // :
     SemiColon,      // ;
+    Prologue,       // %{ ... %}
     Code,           // { ... }
     Ident,          // [a-zA-Z_][a-zA-Z0-9_]*
     String,         // '...'
