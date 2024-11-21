@@ -22,7 +22,8 @@ impl<'a> Iterator for Lexer<'a> {
                 }
                 '%' => {
                     self.pos += 1;
-                    match chars.next()? {
+                    let c = chars.next()?;
+                    match c {
                         '%' => {
                             self.pos += 1;
                             Token::PercentPercent
