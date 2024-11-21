@@ -65,6 +65,9 @@ impl<'a> Parser<'a> {
                     };
                     prelude.push(directive);
                 }
+                Token::Prologue => {
+                    self.expect(Token::Prologue);
+                }
                 _ => break,
             }
         }

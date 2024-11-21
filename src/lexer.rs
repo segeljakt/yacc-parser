@@ -22,10 +22,26 @@ impl<'a> Iterator for Lexer<'a> {
                 }
                 '%' => {
                     self.pos += 1;
-                    match chars.next()? {
+                    let c = chars.next()?;
+                    match c {
                         '%' => {
                             self.pos += 1;
                             Token::PercentPercent
+                        }
+                        '{' => {
+                            self.pos += 1;
+                            loop {
+                                let c = chars.next()?;
+                                self.pos += 1;
+                                if c == '%' {
+                                    let c = chars.next()?;
+                                    self.pos += 1;
+                                    if c == '}' {
+                                        break;
+                                    }
+                                }
+                            }
+                            break Token::Prologue;
                         }
                         'a'..='z' | 'A'..='Z' => {
                             self.pos += 1;
