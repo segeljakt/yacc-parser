@@ -8,12 +8,17 @@ pub enum Token {
     Colon,          // :
     SemiColon,      // ;
     Code,           // { ... }
-    Ident,          // [a-zA-Z_][a-zA-Z0-9_]*
+    Ident,          // [a-zA-Z_][a-zA-Z0-9_]*|'.'
     String,         // '...'
     Eof,            // End of file
     Directive,      // %ident ...
+    Char,           // 'a'
+    Number,         // 123
+    Type,
+    Err,
 }
 
+#[derive(Debug, Clone)]
 pub struct Spanned<T> {
     pub data: T,
     pub span: std::ops::Range<usize>,

@@ -12,62 +12,130 @@ impl<'a> Iterator for Lexer<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut chars = self.input[self.pos..].chars();
-        let start = self.pos;
+        let mut start = self.pos;
         let token = loop {
             let c = chars.next()?;
             match c {
+                '\'' => {
+                    self.advance();
+                    chars.next().expect("unexpected end of input");
+                    self.advance();
+                    let c = chars.next().expect("unexpected end of input");
+                    self.advance();
+                    if c == '\'' {
+                        break Token::Char;
+                    }
+                    break Token::Err;
+                }
+                // '<char>'
+                '/' => {
+                    self.advance();
+                    match chars.next()? {
+                        '/' => {
+                            self.advance();
+                            while let Some(c) = chars.next() {
+                                if c == '\n' {
+                                    break;
+                                }
+                                self.advance();
+                            }
+                            start = self.pos;
+                            continue;
+                        }
+                        '*' => {
+                            self.advance();
+                            loop {
+                                let c = chars.next().expect("unexpected end of input");
+                                self.advance();
+                                if c == '*' {
+                                    let c = chars.next().expect("unexpected end of input");
+                                    if c == '/' {
+                                        self.advance();
+                                        break;
+                                    } else {
+                                        chars = self.input[self.pos..].chars();
+                                    }
+                                }
+                            }
+                            start = self.pos;
+                            continue;
+                        }
+                        _ => break Token::Err,
+                    }
+                }
                 '\n' | ' ' | '\t' => {
-                    self.pos += 1;
+                    self.advance();
+                    start = self.pos;
                     continue;
                 }
+                '=' => {
+                    self.advance();
+                    break Token::Equal;
+                }
+                '0'..='9' => {
+                    self.advance();
+                    while let Some(c) = chars.next() {
+                        if c.is_ascii_digit() {
+                            self.advance();
+                            continue;
+                        }
+                        break;
+                    }
+                    break Token::Number;
+                }
+                '"' => {
+                    self.advance();
+                    while let Some(c) = chars.next() {
+                        self.advance();
+                        if c == '"' {
+                            break;
+                        }
+                    }
+                    break Token::String;
+                }
                 '%' => {
-                    self.pos += 1;
+                    self.advance();
                     match chars.next()? {
                         '%' => {
-                            self.pos += 1;
-                            Token::PercentPercent
+                            self.advance();
+                            break Token::PercentPercent;
                         }
                         'a'..='z' | 'A'..='Z' => {
-                            self.pos += 1;
+                            self.advance();
                             while let Some(c) = chars.next() {
                                 if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                                    self.pos += 1;
+                                    self.advance();
                                     continue;
                                 }
                                 break;
                             }
                             break Token::Directive;
                         }
-                        _ => panic!("unexpected character: {:?} at byte {:?}", c, self.pos),
+                        _ => {
+                            self.advance();
+                            break Token::Err;
+                        }
                     }
                 }
-                '>' => {
-                    self.pos += 1;
-                    break Token::GreaterThan;
-                }
-                '<' => {
-                    self.pos += 1;
-                    break Token::LessThan;
-                }
                 '|' => {
-                    self.pos += 1;
+                    self.advance();
                     break Token::Bar;
                 }
                 ':' => {
-                    self.pos += 1;
+                    self.advance();
                     break Token::Colon;
                 }
                 ';' => {
-                    self.pos += 1;
+                    self.advance();
                     break Token::SemiColon;
                 }
                 // {...}
                 '{' => {
-                    self.pos += 1;
+                    self.advance();
                     let mut depth = 1;
                     loop {
                         let c = chars.next().expect("unexpected end of input");
-                        self.pos += 1;
+                        self.advance();
                         match c {
                             '{' => depth += 1,
                             '}' => {
@@ -82,17 +150,34 @@ impl<'a> Iterator for Lexer<'a> {
                     break Token::Code;
                 }
                 'a'..='z' | 'A'..='Z' => {
-                    self.pos += 1;
+                    self.advance();
                     while let Some(c) = chars.next() {
-                        if c.is_ascii_alphanumeric() || c == '_' {
-                            self.pos += 1;
-                            continue;
+                        match c {
+                            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => {
+                                self.advance();
+                                continue;
+                            }
+                            _ => break,
                         }
-                        break;
                     }
                     break Token::Ident;
                 }
-                _ => panic!("unexpected character: {:?} at byte {:?}", c, self.pos),
+                '<' => {
+                    self.advance();
+                    break loop {
+                        let c = chars.next().expect("unexpected end of input");
+                        self.advance();
+                        match c {
+                            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => continue,
+                            '>' => break Token::Type,
+                            _ => break Token::Err,
+                        }
+                    };
+                }
+                _ => {
+                    self.advance();
+                    Token::Err
+                }
             };
         };
         Some(Spanned::new(token, start..self.pos))
@@ -102,5 +187,9 @@ impl<'a> Iterator for Lexer<'a> {
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Lexer { input, pos: 0 }
+    }
+
+    fn advance(&mut self) {
+        self.pos += 1;
     }
 }
